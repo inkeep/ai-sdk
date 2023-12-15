@@ -1,6 +1,6 @@
 import {
-  InkeepCompleteMessage,
   InkeepStream,
+  OnFinalInkeepMetadata,
   StreamingTextResponse,
   experimental_StreamData,
 } from 'ai';
@@ -65,15 +65,9 @@ export async function POST(req: Request) {
   }
 
   const stream = InkeepStream(response, {
-    onCompleteMessage: (finalMessageContent: InkeepCompleteMessage) => {
-      const chat_session_id = finalMessageContent.chat_session_id;
-      if (chat_session_id) {
-        const chatData: InkeepChatResultCustomData = {
-          chat_session_id,
-        };
-        data.append(chatData);
-      } else {
-        throw new Error('Chat session id is undefined');
+    onFinal: async (complete: string, metadata?: OnFinalInkeepMetadata) => {
+      if (metadata) {
+        data.append({ onFinalMetadata: metadata });
       }
       data.close();
     },
