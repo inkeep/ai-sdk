@@ -1,6 +1,6 @@
 {
-  "name": "ai",
-  "version": "2.2.29",
+  "name": "@inkeep/ai-sdk",
+  "version": "2.2.297",
   "license": "Apache-2.0",
   "sideEffects": false,
   "main": "./dist/index.js",
@@ -88,7 +88,6 @@
     "@anthropic-ai/sdk": "0.10.0",
     "@aws-sdk/client-bedrock-runtime": "3.451.0",
     "@edge-runtime/vm": "^3.1.7",
-    "@google/generative-ai": "0.1.1",
     "@huggingface/inference": "2.6.4",
     "@mistralai/mistralai": "0.0.7",
     "@solidjs/testing-library": "0.8.4",
@@ -143,10 +142,10 @@
   "homepage": "https://sdk.vercel.ai/docs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vercel/ai.git"
+    "url": "git+https://github.com/inkeep/ai-sdk.git"
   },
   "bugs": {
-    "url": "https://github.com/vercel/ai/issues"
+    "url": "https://github.com/inkeep/ai-sdk/issues"
   },
   "keywords": [
     "ai",
