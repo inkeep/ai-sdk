@@ -1,6 +1,6 @@
 {
-  "name": "@inkeep/ai-sdk",
-  "version": "2.2.294",
+  "name": "ai",
+  "version": "2.2.29",
   "license": "Apache-2.0",
   "sideEffects": false,
   "main": "./dist/index.js",
@@ -142,10 +142,10 @@
   "homepage": "https://sdk.vercel.ai/docs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/inkeep/ai-sdk.git"
+    "url": "git+https://github.com/vercel/ai.git"
   },
   "bugs": {
-    "url": "https://github.com/inkeep/ai-sdk/issues"
+    "url": "https://github.com/vercel/ai/issues"
   },
   "keywords": [
     "ai",
