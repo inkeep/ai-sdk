@@ -1,30 +1,38 @@
 'use client';
 
 import { useChat } from 'ai/react';
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import useHandleEvents from './utils/useHandleEvents';
+import { InkeepRecordsCitedData, OnFinalInkeepMetadata } from 'ai';
 
 export default function Chat() {
-  const [inkeepChatSessionId, setInkeepChatSessionId] = useState<
-    string | undefined
-  >(undefined);
-  const inkeepIntegrationId = process.env.NEXT_PUBLIC_INKEEP_INTEGRATION_ID;
+  /**
+   * you can also put the chat session id in search params e.g. ?chat_session_id=123
+   * or path params like /chat/123 depending on your use case
+   */
+  const [chatSessionId, setChatSessionId] = useState<string | undefined>(
+    undefined,
+  );
 
-  if (!inkeepIntegrationId) {
-    throw new Error(
-      'NEXT_PUBLIC_INKEEP_INTEGRATION_ID is not defined in the environment variables.',
-    );
-  }
-
-  const extraOptions = {
-    data: {
-      ...(inkeepChatSessionId ? { chat_session_id: inkeepChatSessionId } : {}),
-      integration_id: inkeepIntegrationId,
+  const { messages, input, handleInputChange, handleSubmit, data } = useChat({
+    body: {
+      chat_session_id: chatSessionId,
     },
-  };
-  const { messages, input, handleInputChange, handleSubmit, data } = useChat();
+  });
 
-  console.log(data);
-  console.log(messages);
+  const inkeepEventHandlers = useMemo(
+    () => ({
+      onFinalMetadata: (metadata: OnFinalInkeepMetadata) => {
+        setChatSessionId(metadata.chat_session_id);
+      },
+      onRecordsCited: (records: InkeepRecordsCitedData) => {
+        // console.log(records); // list of records used in the conversation
+      },
+    }),
+    [setChatSessionId],
+  );
+
+  useHandleEvents(data, inkeepEventHandlers);
 
   return (
     <div className="flex flex-col w-full max-w-md py-24 mx-auto stretch">
@@ -35,11 +43,7 @@ export default function Chat() {
         </div>
       ))}
 
-      <form
-        onSubmit={e => {
-          handleSubmit(e, extraOptions);
-        }}
-      >
+      <form onSubmit={handleSubmit}>
         <input
           className="fixed bottom-0 w-full max-w-md p-2 mb-8 border border-gray-300 rounded shadow-xl"
           value={input}

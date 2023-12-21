@@ -1,72 +1,82 @@
 import {
-  ParsedEvent,
-  ReconnectInterval,
-  createParser,
-} from 'eventsource-parser';
-import {
-  AIStreamParser,
   InkeepStream,
+  OnFinalInkeepMetadata,
   StreamingTextResponse,
-  createEventStreamTransformer,
-} from '../../../../../packages/core/streams';
+  experimental_StreamData,
+  InkeepAIStreamCallbacksAndOptions,
+} from 'ai';
+import { InkeepApiClient, continueChat, createChatSession } from './inkeepApi';
 
-// Define the type for the request body
-interface InkeepApiRequestBody {
-  integration_id: string;
-  chat_session: {
-    messages: Array<{
-      role: string;
-      content: string[];
-    }>;
-  };
-}
-
-interface UseChatRequestBody {
+interface ChatRequestBody {
   messages: Array<{
-    role: string;
-    content: string[];
+    role: 'user' | 'assistant';
+    content: string;
   }>;
-  data: {
-    integration_id: string;
-  };
+  chat_session_id?: string;
 }
 
-if (!process.env.INKEEP_API_KEY) {
-  throw new Error('INKEEP_API_KEY is undefined');
+const inkeepApiKey = process.env.INKEEP_API_KEY;
+const inkeepIntegrationId = process.env.INKEEP_INTEGRATION_ID;
+
+if (!inkeepApiKey || !inkeepIntegrationId) {
+  throw new Error('Inkeep identifiers undefined');
 }
+
+export type InkeepChatResultCustomData = {
+  chat_session_id?: string;
+};
+
+const client = new InkeepApiClient(inkeepApiKey);
 
 // examples/next-inkeep/app/api/chat/route.ts
 export async function POST(req: Request) {
-  const useChatRequestBody: UseChatRequestBody = await req.json();
+  const chatRequestBody: ChatRequestBody = await req.json();
+  const chatId = chatRequestBody.chat_session_id;
 
-  const inkeepRequestBody: InkeepApiRequestBody = {
-    integration_id: useChatRequestBody.data.integration_id,
-    chat_session: {
-      messages: useChatRequestBody.messages,
-    },
-  };
-
-  console.log('Request body:', useChatRequestBody); // Log the request body
-
-  const response = await fetch(
-    'https://api.inkeep.com/v0/chat_sessions/chat_results',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.INKEEP_API_KEY}`,
+  let response;
+  if (!chatId) {
+    // new chat session
+    response = await createChatSession({
+      input: {
+        integration_id: inkeepIntegrationId!,
+        chat_session: {
+          messages: chatRequestBody.messages,
+        },
+        stream: true,
       },
-      body: JSON.stringify(inkeepRequestBody),
-    },
-  );
-
-  console.log('Response:', response); // Log the response
-
-  if (response.body) {
-    const stream = InkeepStream(response);
-    return new StreamingTextResponse(stream);
+      client,
+    });
   } else {
-    console.log('Response body is null');
+    // continue chat session
+    response = await continueChat({
+      input: {
+        integration_id: inkeepIntegrationId!,
+        chat_session_id: chatId,
+        message: chatRequestBody.messages[chatRequestBody.messages.length - 1],
+      },
+      client,
+    });
+  }
+
+  // data is used to pass custom metadata to the client, like chat_session_id
+  const data = new experimental_StreamData();
+
+  if (!response?.body) {
     throw new Error('Response body is null');
   }
+
+  const stream = InkeepStream(response, {
+    onRecordsCited: async recordsCited => {
+      data.append({ onRecordsCited: JSON.parse(JSON.stringify(recordsCited)) });
+    },
+    onFinal: async (complete: string, metadata?: OnFinalInkeepMetadata) => {
+      if (metadata) {
+        data.append({ onFinalMetadata: metadata });
+      }
+      data.close();
+    },
+    experimental_streamData: true,
+  });
+
+  return new StreamingTextResponse(stream, {}, data);
 }

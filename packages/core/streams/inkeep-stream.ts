@@ -4,48 +4,77 @@ import {
   type AIStreamCallbacksAndOptions,
   AIStreamParser,
 } from './ai-stream';
-
 import { z } from 'zod';
 import { createStreamDataTransformer } from './stream-data';
 
-export type AIStreamCallbacksAndOptionsWithInkeep =
-  AIStreamCallbacksAndOptions &
-    Pick<InkeepChatResultCallbacks, 'onCompleteMessage'>;
+export type InkeepMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+  [key: string]: any;
+};
 
 // Schema for an Inkeep Message Chunk
-const InkeepMessageChunkDataSchema = z.object({
-  chat_session_id: z.string(),
-  content_chunk: z.string(),
-  finish_reason: z.union([z.string(), z.null()]).optional(),
-});
+const InkeepMessageChunkDataSchema = z
+  .object({
+    chat_session_id: z.string(),
+    content_chunk: z.string(),
+    finish_reason: z.union([z.string(), z.null()]).optional().nullable(),
+  })
+  .passthrough();
 
 export type InkeepMessageChunkData = z.infer<
   typeof InkeepMessageChunkDataSchema
 >;
 
-export type InkeepMessage = {
-  role: 'user' | 'assistant';
-  content: string;
+export type OnFinalInkeepMetadata = {
+  chat_session_id: string;
 };
 
-export type InkeepCompleteMessage = {
-  chat_session_id: string;
-  message: InkeepMessage;
-};
+const RecordSchema = z
+  .object({
+    type: z.string(),
+    url: z.string().optional().nullable(),
+    title: z.string().optional().nullable(),
+    breadcrumbs: z.array(z.string()).optional().nullable(),
+  })
+  .passthrough();
+
+const CitationSchema = z
+  .object({
+    number: z.number(),
+    record: RecordSchema,
+  })
+  .passthrough();
+
+const InkeepRecordsCitedDataSchema = z
+  .object({
+    citations: z.array(CitationSchema),
+  })
+  .passthrough();
+
+export type InkeepRecordsCitedData = z.infer<
+  typeof InkeepRecordsCitedDataSchema
+>;
 
 export type InkeepChatResultCallbacks = {
-  onCompleteMessage?: (completeMessage: InkeepCompleteMessage) => void;
+  onFinal?: (
+    completion: string,
+    metadata?: OnFinalInkeepMetadata,
+  ) => Promise<void> | void;
+  onRecordsCited?: (recordsCited: InkeepRecordsCitedData) => void;
 };
+
+export type InkeepAIStreamCallbacksAndOptions = AIStreamCallbacksAndOptions &
+  InkeepChatResultCallbacks;
 
 export function InkeepStream(
   res: Response,
-  callbacks?: AIStreamCallbacksAndOptionsWithInkeep,
+  callbacks?: InkeepAIStreamCallbacksAndOptions,
 ): ReadableStream {
   if (!res.body) {
     throw new Error('Response body is null');
   }
 
-  let completeContent = '';
   let chat_session_id = '';
 
   const inkeepEventParser: AIStreamParser = (data: string) => {
@@ -59,51 +88,38 @@ export function InkeepStream(
     }
 
     chat_session_id = inkeepContentChunk.chat_session_id;
-    completeContent += inkeepContentChunk.content_chunk;
 
     return inkeepContentChunk.content_chunk;
   };
 
-  let onCompleteMessage;
-  let userCoreCallbacks: AIStreamCallbacksAndOptions | undefined;
+  let { onRecordsCited, ...passThroughCallbacks } = callbacks || {};
 
-  if (callbacks) {
-    ({ onCompleteMessage, ...userCoreCallbacks } = callbacks);
-  }
-
-  const inkeepCallbacks: InkeepChatResultCallbacks = {
-    onCompleteMessage,
-  };
-
-  let callbacksCore = { ...userCoreCallbacks };
-
-  callbacksCore = {
-    ...callbacksCore,
+  // extend onFinal callback with Inkeep specific metadata
+  passThroughCallbacks = {
+    ...passThroughCallbacks,
+    onFinal: completion => {
+      const onFinalInkeepMetadata: OnFinalInkeepMetadata = {
+        chat_session_id,
+      };
+      callbacks?.onFinal?.(completion, onFinalInkeepMetadata);
+    },
     onEvent: e => {
-      if (userCoreCallbacks?.onEvent) {
-        userCoreCallbacks.onEvent(e);
+      if (callbacks?.onEvent) {
+        callbacks.onEvent(e);
       }
-      if (e.type === 'event') {
-        if (e.event === 'message_chunk') {
-          const data = InkeepMessageChunkDataSchema.parse(
-            JSON.parse(e.data),
-          ) as InkeepMessageChunkData;
-          if (data.finish_reason === 'stop') {
-            inkeepCallbacks.onCompleteMessage?.({
-              chat_session_id: data.chat_session_id,
-              message: {
-                role: 'assistant',
-                content: completeContent,
-              },
-            });
-            completeContent = '';
+      if (callbacks?.onRecordsCited) {
+        if (e.type === 'event') {
+          if (e.event === 'records_cited') {
+            callbacks.onRecordsCited(
+              InkeepRecordsCitedDataSchema.parse(JSON.parse(e.data)),
+            );
           }
         }
       }
     },
   };
 
-  return AIStream(res, inkeepEventParser, callbacksCore).pipeThrough(
-    createStreamDataTransformer(callbacksCore?.experimental_streamData),
+  return AIStream(res, inkeepEventParser, passThroughCallbacks).pipeThrough(
+    createStreamDataTransformer(passThroughCallbacks?.experimental_streamData),
   );
 }
