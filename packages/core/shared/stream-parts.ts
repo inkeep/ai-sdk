@@ -287,7 +287,7 @@ export const streamPartsByCode = {
   [assistantControlDataStreamPart.code]: assistantControlDataStreamPart,
   [dataMessageStreamPart.code]: dataMessageStreamPart,
   [toolCallStreamPart.code]: toolCallStreamPart,
-  [messageDataStreamPart.name]: messageDataStreamPart.code,
+  [messageDataStreamPart.code]: messageDataStreamPart,
 } as const;
 
 /**
@@ -321,6 +321,7 @@ export const StreamStringPrefixes = {
   [assistantControlDataStreamPart.name]: assistantControlDataStreamPart.code,
   [dataMessageStreamPart.name]: dataMessageStreamPart.code,
   [toolCallStreamPart.name]: toolCallStreamPart.code,
+  [messageDataStreamPart.name]: messageDataStreamPart.code,
 } as const;
 
 export const validCodes = streamParts.map(part => part.code);
