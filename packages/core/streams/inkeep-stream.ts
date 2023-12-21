@@ -20,6 +20,7 @@ export type InkeepMessageChunkData = {
 
 export type OnFinalInkeepMetadata = {
   chat_session_id: string;
+  records_cited: InkeepRecordsCitedData;
 };
 
 export type Record = {
@@ -58,12 +59,15 @@ export function InkeepStream(
   }
 
   let chat_session_id = '';
+  let records_cited: InkeepRecordsCitedData;
 
   const inkeepEventParser: AIStreamParser = (data: string, event) => {
     let inkeepContentChunk: InkeepMessageChunkData;
 
     if (event === 'records_cited') {
-      callbacks?.onRecordsCited?.(JSON.parse(data) as InkeepRecordsCitedData);
+      const recordsCited = JSON.parse(data) as InkeepRecordsCitedData;
+      records_cited = JSON.parse(data) as InkeepRecordsCitedData;
+      callbacks?.onRecordsCited?.(recordsCited);
     }
 
     if (event === 'message_chunk') {
@@ -80,10 +84,9 @@ export function InkeepStream(
   passThroughCallbacks = {
     ...passThroughCallbacks,
     onFinal: completion => {
-      console.log('onFinal', completion);
-      console.log('chat_session_id', chat_session_id);
       const onFinalInkeepMetadata: OnFinalInkeepMetadata = {
         chat_session_id,
+        records_cited,
       };
       callbacks?.onFinal?.(completion, onFinalInkeepMetadata);
     },
