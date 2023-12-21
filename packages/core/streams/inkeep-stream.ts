@@ -59,17 +59,19 @@ export function InkeepStream(
 
   let chat_session_id = '';
 
-  const inkeepEventParser: AIStreamParser = (data: string) => {
+  const inkeepEventParser: AIStreamParser = (data: string, event) => {
     let inkeepContentChunk: InkeepMessageChunkData;
-    try {
-      inkeepContentChunk = JSON.parse(data) as InkeepMessageChunkData;
-    } catch (error) {
-      return;
+
+    if (event === 'records_cited') {
+      callbacks?.onRecordsCited?.(JSON.parse(data) as InkeepRecordsCitedData);
     }
 
-    chat_session_id = inkeepContentChunk.chat_session_id;
-
-    return inkeepContentChunk.content_chunk;
+    if (event === 'message_chunk') {
+      inkeepContentChunk = JSON.parse(data) as InkeepMessageChunkData;
+      chat_session_id = inkeepContentChunk.chat_session_id;
+      return inkeepContentChunk.content_chunk;
+    }
+    return;
   };
 
   let { onRecordsCited, ...passThroughCallbacks } = callbacks || {};
@@ -78,24 +80,12 @@ export function InkeepStream(
   passThroughCallbacks = {
     ...passThroughCallbacks,
     onFinal: completion => {
+      console.log('onFinal', completion);
+      console.log('chat_session_id', chat_session_id);
       const onFinalInkeepMetadata: OnFinalInkeepMetadata = {
         chat_session_id,
       };
       callbacks?.onFinal?.(completion, onFinalInkeepMetadata);
-    },
-    onEvent: e => {
-      if (callbacks?.onEvent) {
-        callbacks.onEvent(e);
-      }
-      if (callbacks?.onRecordsCited) {
-        if (e.type === 'event') {
-          if (e.event === 'records_cited') {
-            callbacks.onRecordsCited(
-              JSON.parse(e.data) as InkeepRecordsCitedData,
-            );
-          }
-        }
-      }
     },
   };
 

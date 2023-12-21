@@ -82,7 +82,7 @@ export function createEventStreamTransformer(
 
           if ('data' in event) {
             const parsedMessage = customParser
-              ? customParser(event.data)
+              ? customParser(event.data, event.event)
               : event.data;
             if (parsedMessage) controller.enqueue(parsedMessage);
           }
