@@ -42,6 +42,7 @@ export async function POST(req: Request) {
         chat_session: {
           messages: chatRequestBody.messages,
         },
+        stream: true,
       },
       client,
     });
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
         integration_id: inkeepIntegrationId!,
         chat_session_id: chatId,
         message: chatRequestBody.messages[chatRequestBody.messages.length - 1],
+        stream: true,
       },
       client,
     });
@@ -66,7 +68,9 @@ export async function POST(req: Request) {
 
   const stream = InkeepStream(response, {
     onRecordsCited: async recordsCited => {
-      data.append({ onRecordsCited: JSON.parse(JSON.stringify(recordsCited)) });
+      data.appendToMessage({
+        recordsCited: JSON.parse(JSON.stringify(recordsCited)),
+      });
     },
     onFinal: async (complete: string, metadata?: OnFinalInkeepMetadata) => {
       if (metadata) {
