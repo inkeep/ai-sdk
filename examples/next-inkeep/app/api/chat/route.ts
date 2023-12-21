@@ -42,6 +42,7 @@ export async function POST(req: Request) {
         chat_session: {
           messages: chatRequestBody.messages,
         },
+        stream: true,
       },
       client,
     });
