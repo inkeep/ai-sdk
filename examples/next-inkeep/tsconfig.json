@@ -21,8 +21,6 @@
     ],
     "paths": {
       "@/*": ["./*"],
-      "ai": ["../../packages/core"],
-      "ai/*": ["../../packages/core/*"]
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
