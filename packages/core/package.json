@@ -1,6 +1,6 @@
 {
   "name": "@inkeep/ai-sdk",
-  "version": "2.2.299",
+  "version": "2.2.2991",
   "license": "Apache-2.0",
   "sideEffects": false,
   "main": "./dist/index.js",
