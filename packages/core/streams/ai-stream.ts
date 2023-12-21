@@ -50,7 +50,7 @@ export interface AIStreamCallbacksAndOptions {
  * @interface
  */
 export interface AIStreamParser {
-  (data: string, event_type): string | void;
+  (data: string, event?: string): string | void;
 }
 
 /**
