@@ -4,7 +4,6 @@ import {
   type AIStreamCallbacksAndOptions,
   AIStreamParser,
 } from './ai-stream';
-import { z } from 'zod';
 import { createStreamDataTransformer } from './stream-data';
 
 export type InkeepMessage = {
@@ -13,48 +12,31 @@ export type InkeepMessage = {
   [key: string]: any;
 };
 
-// Schema for an Inkeep Message Chunk
-const InkeepMessageChunkDataSchema = z
-  .object({
-    chat_session_id: z.string(),
-    content_chunk: z.string(),
-    finish_reason: z.union([z.string(), z.null()]).optional().nullable(),
-  })
-  .passthrough();
-
-export type InkeepMessageChunkData = z.infer<
-  typeof InkeepMessageChunkDataSchema
->;
+export type InkeepMessageChunkData = {
+  chat_session_id: string;
+  content_chunk: string;
+  finish_reason?: string | null;
+};
 
 export type OnFinalInkeepMetadata = {
   chat_session_id: string;
 };
 
-const RecordSchema = z
-  .object({
-    type: z.string(),
-    url: z.string().optional().nullable(),
-    title: z.string().optional().nullable(),
-    breadcrumbs: z.array(z.string()).optional().nullable(),
-  })
-  .passthrough();
+export type Record = {
+  type: string;
+  url?: string | null;
+  title?: string | null;
+  breadcrumbs?: string[] | null;
+};
 
-const CitationSchema = z
-  .object({
-    number: z.number(),
-    record: RecordSchema,
-  })
-  .passthrough();
+export type Citation = {
+  number: number;
+  record: Record;
+};
 
-const InkeepRecordsCitedDataSchema = z
-  .object({
-    citations: z.array(CitationSchema),
-  })
-  .passthrough();
-
-export type InkeepRecordsCitedData = z.infer<
-  typeof InkeepRecordsCitedDataSchema
->;
+export type InkeepRecordsCitedData = {
+  citations: Citation[];
+};
 
 export type InkeepChatResultCallbacks = {
   onFinal?: (
@@ -80,9 +62,7 @@ export function InkeepStream(
   const inkeepEventParser: AIStreamParser = (data: string) => {
     let inkeepContentChunk: InkeepMessageChunkData;
     try {
-      inkeepContentChunk = InkeepMessageChunkDataSchema.parse(
-        JSON.parse(data),
-      ) as InkeepMessageChunkData;
+      inkeepContentChunk = JSON.parse(data) as InkeepMessageChunkData;
     } catch (error) {
       return;
     }
@@ -111,7 +91,7 @@ export function InkeepStream(
         if (e.type === 'event') {
           if (e.event === 'records_cited') {
             callbacks.onRecordsCited(
-              InkeepRecordsCitedDataSchema.parse(JSON.parse(e.data)),
+              JSON.parse(e.data) as InkeepRecordsCitedData,
             );
           }
         }
